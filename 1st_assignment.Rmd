@@ -1,8 +1,8 @@
 ---
-title: "第一次作业你的报告题目"
-CJKmainfont: Songti SC
-author: "your name"
-date: "`r Sys.Date()`"
+title: "关于武汉房屋价格的描述性统计分析"
+CJKmainfont: SimSun
+author: "祝晶"
+date: "2023/10/18"
 output:
   pdf_document:
     latex_engine: xelatex
@@ -17,6 +17,7 @@ output:
     theme: cosmo
     toc: yes
 ---
+
 ```{r setup, include = FALSE,echo = FALSE}
 knitr::opts_chunk$set(echo = FALSE,error = FALSE, warning = FALSE, message = FALSE,
                       out.width = "100%", split = FALSE, fig.align = "center")
@@ -28,38 +29,49 @@ library(scales)
 library(plotly)
 library(patchwork)
 library(ggrepel)
+library(Hmisc)
+library(showtext)
+library(psych)
+library(corrplot)
+library(vtable)
+library(rticles)
+library(showtext)
+library(showtextdb)
+library(showtext)
+showtext.auto(enable = TRUE)
+font.add('SimSun', 'simsun.ttc')
+pdf('test.pdf')
 ```
 
 # 你的主要发现
 
-1. 发现1
+1.  房屋总价与房屋均价存在高度相关关系。
 
-1. 发现2
-  
-1. 发现3
-    
+2.  房屋总价与房屋均价均成正偏态分布。
+
+3.  装修与建筑结构对房屋价格影响不大，区域间房屋价格相差较大。
 
 # 数据介绍
 
 本报告**链家**数据获取方式如下：
-    
-报告人在2023年9月12日获取了[链家武汉二手房网站](https://wh.lianjia.com/ershoufang/)数据。
-    
-- 链家二手房网站默认显示100页，每页30套房产，因此本数据包括3000套房产信息；
-    
-- 数据包括了页面可见部分的文本信息，具体字段及说明见作业说明。
 
- **说明：**数据仅用于教学；由于不清楚链家数据的展示规则，因此数据可能并不是武汉二手房市场的随机抽样，结论很可能有很大的偏差，甚至可能是错误的。
-    
+报告人在2023年9月12日获取了[链家武汉二手房网站](https://wh.lianjia.com/ershoufang/)数据。
+
+-   链家二手房网站默认显示100页，每页30套房产，因此本数据包括3000套房产信息；
+
+-   数据包括了页面可见部分的文本信息，具体字段及说明见作业说明。
+
+**说明：**数据仅用于教学；由于不清楚链家数据的展示规则，因此数据可能并不是武汉二手房市场的随机抽样，结论很可能有很大的偏差，甚至可能是错误的。
+
 ```{r}
 # 载入数据和预处理
 
-lj<- read_csv("/Users/jameschen/Documents/02_Teaching/12_quantitative_thinking_R/data/2023-09-12_cleaned.csv")
+lj<- read_csv("C:/Users/DELL/Desktop/1st_assignment_eda-ZoeyMuch/data/2023-09-12_cleaned.csv")
 # EDA ---------------------------------------------------------------------
 
 ## 如下语句可以解决画图中的中文显示问题，当然你可以用showtext包来解决
 
-theme_set(theme(text = element_text(family="Songti SC",size = 10))) #这里family设置成你系统中的中文字体名。
+theme_set(theme(text = element_text(family="SimSun",size = 10))) #这里family设置成你系统中的中文字体名。
 
 # 做一些数据预处理，比如把字符型变成factor。
 
@@ -73,82 +85,207 @@ theme_set(theme(text = element_text(family="Songti SC",size = 10))) #这里famil
 lj %>% 
   head(10) %>%
   kable(caption = "武汉链家二手房") %>% 
-  kable_styling()
+  kable_styling(latex_options = c("scale_down","hold_position"))
 ```
 
 各变量的简短信息：
+
 ```{r}
-glimpse(lj)
+glimpse(lj) 
 ```
 
 各变量的简短统计：
+
 ```{r}
-summary(lj)
+lj %>% 
+  summary()
+```
+
+将房屋总价均价按所处区域分类排序
+
+```{r}
+price_sqm_1 <- aggregate(lj$price_sqm,by = list(lj$property_region),mean)
+arrange(price_sqm_1,x)
 ```
 
 可以看到：
 
-- 直观结论1
+-   直观结论1
+    房屋总价的中位数为137.0万元，均值为155.9万元 ，房屋单价的中位数为14404元，均值为15148元， 中位数均低于均值，说明成正偏态分布。大部分房屋价格都小于平均房屋价格。
 
-- 直观结论2
-
-- ...
+-   直观结论2
+    按照房屋所处区域房屋单价均值排序，均价最低的是阳逻区，为5015.83元/平方，均价最高的是中北路， 为32727.78元/平方。
 
 # 探索性分析
 
-## 变量1的数值描述与图形
+## 房屋总价的数值描述与图形
+
+### 描述房屋总价
+
+```{r}
+lj %>% 
+  describe() %>% 
+  kable(caption = "房屋总价") %>% 
+  kable_styling(latex_options = c("scale_down","hold_position"))
+```
+
+### 求房屋总价众数
+
+```{r}
+names(which.max(table(lj$price_ttl)))
+```
+
+### 房屋总价绘图
+
+```{r}
+ggplot(lj)+
+  geom_histogram(aes(x=lj$price_ttl),binwidth = 10)+
+  scale_x_continuous(name="房屋总价", breaks=seq(0,1380,50))+
+  ylab("数量")+
+  theme(text = element_text(family="SimSun",size = 10))
+```
 
 发现：
 
-- 发现1
+-   发现1:房屋总价大部分集中于50万---150万之间，与均值155.86万大致相等。
 
-- 发现2
+-   发现2：房屋总价成右偏分布，总价最高值1380远远高于众数105。
 
-## 变量2的数值描述与图形
+## 房屋单价的数值描述与图形
 
-发现：
+### 描述房屋单价
 
-- 发现1
+```{r}
+describe(lj$price_sqm)
 
-- 发现2
 
-## 变量...的数值描述与图形
+```
 
-发现：
+### 求房屋单价众数
 
-- 发现1
+```{r}
+names(which.max(table(lj$price_sqm)))#求众数#
+```
 
-- 发现2
+### 房屋单价绘图
 
-## 探索问题1
-
-发现：
-
-- 发现1
-
-- 发现2
-
-## 探索问题2
-
-发现：
-
-- 发现1
-
-- 发现2
-
-## 探索问题3
+```{r}
+ggplot(lj)+
+  geom_freqpoly(aes(x=lj$price_sqm))+
+  scale_x_continuous(name="房屋单价", breaks=seq(0,45000,2500))+
+  ylab("数量")+
+  theme(text = element_text(family="SimSun",size = 10))
+```
 
 发现：
 
-- 发现1
+-   发现1:房屋单价大部分集中于10000元/平方---16000元/平方之间，与均值15148元/平方大致相等。
 
-- 发现2
+-   发现2：房屋总价成右偏分布，单价最高值44656远远高于众数14394.
 
----
+## 房屋主要朝向的数值描述与图形
+
+### 房屋朝向计数
+
+```{r}
+lj$directions1 %>% 
+  table() %>% 
+  t() %>% 
+   kable(caption = "房屋朝向") %>% 
+  kable_styling(latex_options = c("scale_down","hold_position"))
+```
+
+### 房屋朝向绘图
+
+```{r}
+ggplot(data=lj,aes(x = reorder(directions1, directions1, length))) +
+  geom_bar()+
+  xlab("房屋朝向")+
+  ylab("数量")+
+  theme(text = element_text(family="SimSun",size = 10))
+```
+
+发现：
+
+-   发现1：二手房网站出售的房屋主要朝向多数为南边。
+
+-   发现2：其他所有朝向的房屋加起来占有率约为（3000-2454）/3000=18.2%。
+
+## 在该二手房网站的房屋总价与什么因素相关
+
+### 计算房屋总价相关性
+
+```{r}
+lj_number <- data.frame(lj[3:7])
+round(cor(lj_number),2)
+```
+
+### 绘图
+
+```{r}
+corrplot(cor(lj_number),method = "number",type = "upper")
+```
+
+### 计算P值
+
+```{r}
+cor.test(lj$price_ttl,lj$price_sqm)
+cor.test(lj$price_ttl,lj$building_area)
+```
+
+发现：
+
+-   发现1：房屋总价与房屋均价的p值\<0.001,存在显著相关，且相关系数为0.8，两者强相关。
+
+-   发现2：房屋总价与建筑面积的p值\<0.001,存在显著相关，且相关系数为0.66，两者中等相关。
+
+## 装修对价格的影响
+
+### 描述装修对价格的影响
+```{r}
+describeBy(lj$price_ttl,group = lj$decoration)
+```
+
+### 绘图
+```{r}
+ggplot(lj) +
+  geom_boxplot(aes(x = decoration, y = price_sqm))+
+  scale_y_continuous(name="房屋单价", breaks=seq(0,45000,2500))+
+  xlab("装修状况")+
+  theme(text = element_text(family="SimSun",size = 10))
+```
+
+发现：
+
+-   发现1：简装房与毛胚房价格基本相当，精装房价格高于简装和毛坯房。
+
+-   发现2：离群点多集中于上半部分，上下四分位数都比较集中。
+
+## 建筑形式对价格的影响
+
+### 描述建筑形式对价格的影响
+```{r}
+describeBy(lj$price_sqm,group = lj$property_style)
+  
+```
+
+### 绘图
+```{r}
+ggplot(lj) +
+  geom_boxplot(aes(x = property_style, y = price_sqm))+
+  scale_y_continuous(name="房屋单价", breaks=seq(0,45000,2500))+
+  xlab("建筑形式")+
+  theme(text = element_text(family="SimSun",size = 10))  
+```
+
+发现：
+
+-   发现1：平房的价格非常稳定，差异非常小。
+
+-   发现2：板塔结合的价格稍高，板楼和塔楼价格相差无几。
+
+------------------------------------------------------------------------
 
 # 发现总结
 
-用1-3段话总结你的发现。
-
-
-
+综合以上分析，我认为房屋的价格主要与所处区域及房屋面积有关。装修状况和建筑形式可以在一定程度上影响房价，但并不显著。武汉房屋价格趋势较为集中，波动幅度不大，存在远超于平均水平的价格。
